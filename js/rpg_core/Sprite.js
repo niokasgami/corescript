@@ -57,17 +57,15 @@ Object.defineProperty(Sprite.prototype, 'bitmap', {
     },
     set: function(value) {
         if (this._bitmap !== value) {
-            if(!this._bitmap){
+            this._bitmap = value;
+
+            if(value){
                 this._refreshFrame = true;
-            }else if(this._bitmap && value){
-                this._refreshFrame = false;
-            }else if(!value){
+                value.addLoadListener(this._onBitmapLoad.bind(this));
+            }else{
                 this._refreshFrame = false;
                 this.texture.frame = Rectangle.emptyRectangle;
             }
-
-            this._bitmap = value;
-            if(value)value.addLoadListener(this._onBitmapLoad.bind(this));
         }
     },
     configurable: true
@@ -158,6 +156,7 @@ Sprite.prototype.move = function(x, y) {
  * @param {Number} height The height of the frame
  */
 Sprite.prototype.setFrame = function(x, y, width, height) {
+    this._refreshFrame = false;
     var frame = this._frame;
     if (x !== frame.x || y !== frame.y ||
             width !== frame.width || height !== frame.height) {
@@ -404,6 +403,10 @@ Sprite.prototype._renderCanvas = function(renderer) {
     if (this.bitmap) {
         this.bitmap.touch();
     }
+    if(this.bitmap && !this.bitmap.isReady()){
+        return;
+    }
+
     if (this.texture.frame.width > 0 && this.texture.frame.height > 0) {
         this._renderCanvas_PIXI(renderer);
     }
@@ -442,6 +445,9 @@ Sprite.prototype._speedUpCustomBlendModes = function(renderer) {
 Sprite.prototype._renderWebGL = function(renderer) {
     if (this.bitmap) {
         this.bitmap.touch();
+    }
+    if(this.bitmap && !this.bitmap.isReady()){
+        return;
     }
     if (this.texture.frame.width > 0 && this.texture.frame.height > 0) {
         if (this._bitmap) {

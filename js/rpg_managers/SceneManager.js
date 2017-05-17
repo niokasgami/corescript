@@ -68,8 +68,10 @@ SceneManager.initGraphics = function() {
 SceneManager.preferableRendererType = function() {
     if (Utils.isOptionValid('canvas')) {
         return 'canvas';
-    } else {
+    } else if (Utils.isOptionValid('webgl')) {
         return 'webgl';
+    } else {
+        return 'auto';
     }
 };
 
@@ -348,4 +350,13 @@ SceneManager.snapForBackground = function() {
 
 SceneManager.backgroundBitmap = function() {
     return this._backgroundBitmap;
+};
+
+SceneManager.resume = function() {
+    this._stopped = false;
+    this.requestUpdate();
+    if (!Utils.isMobileSafari()) {
+        this._currentTime = this._getTimeInMsWithoutMobileSafari();
+        this._accumulator = 0;
+    }
 };

@@ -10,7 +10,7 @@ function Graphics() {
 
 Graphics._cssFontLoading =  document.fonts && document.fonts.ready;
 Graphics._fontLoaded = null;
-
+Graphics._videoVolume = 1;
 
 /**
  * Initializes the graphics system.
@@ -32,6 +32,7 @@ Graphics.initialize = function(width, height, type) {
     this._scale = 1;
     this._realScale = 1;
 
+    this._errorShowed = false;
     this._errorPrinter = null;
     this._canvas = null;
     this._video = null;
@@ -163,6 +164,9 @@ Graphics.render = function(stage) {
         var startTime = Date.now();
         if (stage) {
             this._renderer.render(stage);
+            if (this._renderer.gl && this._renderer.gl.flush) {
+                this._renderer.gl.flush();
+            }
         }
         var endTime = Date.now();
         var elapsed = endTime - startTime;
@@ -269,6 +273,40 @@ Graphics.endLoading = function() {
 };
 
 /**
+ * Displays the loading error text to the screen.
+ *
+ * @static
+ * @method printLoadingError
+ * @param {String} url The url of the resource failed to load
+ */
+Graphics.printLoadingError = function(url) {
+    if (this._errorPrinter && !this._errorShowed) {
+        this._errorPrinter.innerHTML = this._makeErrorHtml('Loading Error', 'Failed to load: ' + url);
+        var button = document.createElement('button');
+        button.innerHTML = 'Retry';
+        button.style.fontSize = '24px';
+        button.style.color = '#ffffff';
+        button.style.backgroundColor = '#000000';
+        button.onclick = ResourceHandler.retry.bind(ResourceHandler);
+        this._errorPrinter.appendChild(button);
+        this._loadingCount = -Infinity;
+    }
+};
+
+/**
+ * Erases the loading error text.
+ *
+ * @static
+ * @method eraseLoadingError
+ */
+Graphics.eraseLoadingError = function() {
+    if (this._errorPrinter && !this._errorShowed) {
+        this._errorPrinter.innerHTML = '';
+        this.startLoading();
+    }
+};
+
+/**
  * Displays the error text to the screen.
  *
  * @static
@@ -277,6 +315,7 @@ Graphics.endLoading = function() {
  * @param {String} message The message of the error
  */
 Graphics.printError = function(name, message) {
+    this._errorShowed = true;
     if (this._errorPrinter) {
         this._errorPrinter.innerHTML = this._makeErrorHtml(name, message);
     }
@@ -366,9 +405,20 @@ Graphics.isFontLoaded = function(name) {
  * @param {String} src
  */
 Graphics.playVideo = function(src) {
+    this._videoLoader = ResourceHandler.createLoader(null, this._playVideo.bind(this, src), this._onVideoError.bind(this));
+    this._playVideo(src);
+};
+
+/**
+ * @static
+ * @method _playVideo
+ * @param {String} src
+ * @private
+ */
+Graphics._playVideo = function(src) {
     this._video.src = src;
     this._video.onloadeddata = this._onVideoLoad.bind(this);
-    this._video.onerror = this._onVideoError.bind(this);
+    this._video.onerror = this._videoLoader;
     this._video.onended = this._onVideoEnd.bind(this);
     this._video.load();
     this._videoLoading = true;
@@ -395,6 +445,20 @@ Graphics.isVideoPlaying = function() {
  */
 Graphics.canPlayVideoType = function(type) {
     return this._video && this._video.canPlayType(type);
+};
+
+/**
+ * Sets volume of a video.
+ *
+ * @static
+ * @method setVideoVolume
+ * @param {Number} value
+ */
+Graphics.setVideoVolume = function(value) {
+    this._videoVolume = value;
+    if (this._video) {
+        this._video.volume = this._videoVolume;
+    }
 };
 
 /**
@@ -722,6 +786,7 @@ Graphics._createVideo = function() {
     this._video.id = 'GameVideo';
     this._video.style.opacity = 0;
     this._video.setAttribute('playsinline', '');
+    this._video.volume = this._videoVolume;
     this._updateVideo();
     makeVideoPlayableInline(this._video);
     document.body.appendChild(this._video);
